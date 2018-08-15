@@ -1,0 +1,7 @@
+.area-max {
+  fill-opacity: 50%;
+  stroke: green; }
+
+.title-wrapper {
+  position: absolute;
+  transform: translateY(275px) translateX(95px); }

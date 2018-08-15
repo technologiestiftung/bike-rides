@@ -1,0 +1,19 @@
+.area-max {
+  fill-opacity: 50%;
+  stroke: green; }
+
+.title-wrapper {
+  position: absolute;
+  transform: translateY(275px) translateX(95px); }
+
+body {
+  font: 10px sans-serif;
+  margin: 0; }
+
+.line {
+  fill: none;
+  stroke: #666;
+  stroke-width: 1.5px; }
+
+.area {
+  fill: #e7e7e7; }
