@@ -11,6 +11,7 @@
   "dependencies": {
     "cubism": "^1.6.0",
     "d3": "^5.5.0",
+    "d3-fetch": "^1.1.0",
     "fast-csv": "^2.4.1",
     "lodash": "^4.17.10",
     "node-xlsx": "^0.12.1",

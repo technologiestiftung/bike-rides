@@ -25,7 +25,7 @@ function readData(file) {
         files_array.forEach(file => {
             console.log(data[file]);
             // change: push all years into radarchart
-            const radarChart = new Radarchart(data[file]['2017'], config); 
+            const radarChart = new Radarchart(data[file]['2017'], config);
             radarChart.init(); 
         })
     })
