@@ -1,4 +1,4 @@
-const filepath = "assets/02-MI-JAN-S_summed.json";
+const filepath = "assets/2017.json";
 const filepath_v2 = "assets/structure.json";
 
 
@@ -9,7 +9,7 @@ let config  = {
     radius: 2,
     factor: 1,
     factor_legend: .85,
-    max_value: 1000,
+    max_value: 10000,
     margin: {
         left: 50,
         right: 50,
@@ -20,8 +20,9 @@ let config  = {
 
 
 function readData(file) {
-    const files_array = ['02-MI-JAN-S', '03-MI-SAN-O'];
     d3.json(file).then((data) => {
+        
+        const files_array = Object.keys(data);
         files_array.forEach(file => {
             console.log(data[file]);
             // change: push all years into radarchart
@@ -31,4 +32,4 @@ function readData(file) {
     })
 }
 
-readData(filepath_v2);
+readData(filepath);

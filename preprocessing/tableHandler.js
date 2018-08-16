@@ -7,6 +7,7 @@ class Tablehandler {
     constructor(filepath) {
         this.filepath = filepath
         this.filename = "";
+        this.years = ['2012', '2013', '2014', '2015', '2016', '2017'];
         this.location = {};
         this.sheet_location = {};
         this.month_current = 0;
@@ -17,6 +18,9 @@ class Tablehandler {
         this.weekdays = [[], [], [], [], [], [], []];
         this.weekdays_summed = [[], [], [], [], [], [], []];
         this.weekdays_used = [0,1,2,3,4,5,6];
+
+        this.weekdays_current_flat, this.month_data_current, this.weekdays_data_current, this.station_name, this.temp_cols_array = [];
+
         this.stations = [
             { "index": 0, "name": "", "values": []},
             { "index": 0, "name": "", "values": []},
@@ -46,7 +50,7 @@ class Tablehandler {
             { "index": 0, "name": "", "values": []},
             { "index": 0, "name": "", "values": []}
         ]
-        this.data, this.data_transformed = {};
+        this.data = {}, this.data_transformed = {};
         this.col_ids,
         this.writeFile = this.writeFile.bind(this);
         this.getJsDateFromExcel = this.getJsDateFromExcel.bind(this);
@@ -60,6 +64,8 @@ class Tablehandler {
         this.parse_data = this.parse_data.bind(this);
         this.analyse_weekdays = this.analyse_weekdays.bind(this);
         this.analyse_month = this.analyse_month.bind(this);
+        this.move_temp_data = this.move_temp_data.bind(this);
+        this.mergeJsons = this.mergeJsons.bind(this);
     }
 
     parseXlsx2Json(filepath) {
@@ -75,24 +81,56 @@ class Tablehandler {
         };
 
         obj.dict = Xlsx.parse(filepath)[1];
-        obj.years['2012'] = Xlsx.parse(filepath)[2];
-        obj.years['2013'] = Xlsx.parse(filepath)[3];
-        obj.years['2014'] = Xlsx.parse(filepath)[4];
-        obj.years['2015'] = Xlsx.parse(filepath)[5];
-        obj.years['2016'] = Xlsx.parse(filepath)[6];
-        obj.years['2017'] = Xlsx.parse(filepath)[7];
+
+        this.years.forEach((year, i) => {
+
+            let array_temp = [];
+            
+            Xlsx.parse(filepath)[i + 2].data.forEach(row_array => {
+                row_array.forEach(value => {
+                    if(value == "") {
+                        this.temp_cols_array.push('no data');
+                    } else {
+                        this.temp_cols_array.push(value);
+                    }
+                    
+                })
+                array_temp.push(this.temp_cols_array);
+            });
+            obj.years[year] = this.temp_cols_array
+            this.temp_cols_array = [];
+        })
 
         this.writeFile('location' , JSON.stringify(obj));
     }
 
+    mergeJsons(file_array) {
+        file_array.forEach((file, i) => {
+            let file_path = `./data/${file}`;
+            fs.readFile(file_path, 'utf8', (err, data) => {
+                if (i == 0) {
+                }
+                this.data = JSON.parse(data);
+                // console.log(this.data_transformed);
+            })
+        })
+        console.log(this.data);
+    }
+
     parseData(json) {  
-       fs.readFile(json, 'utf8', (err, data) => {
+        // '2012', '2013', '2014', '2015', '2016', 
+        let years = ['2013']
+        fs.readFile(json, 'utf8', (err, data) => {
            if (err) throw err;
            this.data = JSON.parse(data);
            this.dict = this.createDictionary(this.data.dict.data);
 
            this.fillObj(this.data.years['2017'].data[0]);
-           this.restructure_sheet(this.data.years['2017']);
+
+           years.forEach(year => {
+               this.restructure_sheet(this.data['years'][year]);
+           })
+           this.writeFile(years[0], JSON.stringify(this.data_transformed));
        })
     }
 
@@ -111,12 +149,12 @@ class Tablehandler {
         cols_array.forEach((col,i) => {
             if (i > 0) {
                 this.data_transformed[col] = {
-                    "2012": "",
-                    "2013": "",
-                    "2014": "",
-                    "2015": "",
-                    "2016": "",
-                    "2017": ""
+                    "2012": [],
+                    "2013": [],
+                    "2014": [],
+                    "2015": [],
+                    "2016": [],
+                    "2017": []
                 };
             }
         })
@@ -154,61 +192,119 @@ class Tablehandler {
     }
 
     parse_data(structured_data) {
-        // do it for each station
-        const station_test = structured_data[25].values;
-        this.day_current = station_test[2].time.getDay(); // day 0 == sunday
         let BreakException = {};
-        let day_data = [];
 
-        station_test.forEach(timeslot => {
-            const value = timeslot.value;
-            const time = timeslot.time;
-            const day = time.getDay();
-            const month = time.getMonth();
-            const year = time.getYear() + 1900;
-            this.year = year;
-            
-            throw BreakException;
+        let stations_temp = [];
 
-            day_data.push(value);
-            this.month_data.push(value);
-            
-            if(this.day_current != day) {                                   // condition per day
-                this.day_current = day;
-                this.weekdays_used = _.remove(this.weekdays_used, function(n) {
-                    return n != day;
-                });
-                day_data.forEach(value => {
-                    this.weekdays[day].push(value);
-                })
-                day_data = [];
-            } else if(this.weekdays_used.length == 0) {                     // condition per week
-                this.weekdays.forEach((day, i) => {
-                    this.weekdays_summed[i].push(_.sum(day));
-                    this.weekdays_used = [0,1,2,3,4,5,6];
-                    this.weekdays = [[], [], [], [], [], [], []];
-                })
-            } else if(this.month_current < month) {                         // condition per month
-                // reset weekdays
-                this.weekdays.forEach((day, i) => {
-                    this.weekdays_summed[i].push(_.sum(day));
-                    this.weekdays_used = [0,1,2,3,4,5,6];
-                });
+        for (let index = 0; index < 27; index++) {
+            stations_temp.push([]);
+        }
+
+        structured_data.forEach((station, index_station) => {
+            if(station.index > -1) {
+                this.station_name = station.name;
+                const station_values = station.values;
+                if (station.values[0] != undefined) {
+                    this.day_current = station.values[0].time.getDay(); // day 0 == sunday
+                } else {
+                    this.day_current = 0;
+                }
+                // throw BreakException;
+                let day_data = [];
+
+                station_values.forEach((timeslot, index_timeslot) => {
+                    const value = timeslot.value;
+                    const time = timeslot.time;
+                    const day = time.getDay();
+                    const month = time.getMonth();
+                    const year = time.getYear() + 1900;
+
+                    let months_test = [];
+
+                    this.year = year;
                 
-                let weekdays_current_flat = _.flattenDeep(this.weekdays_summed);
-                let month_data_current = this.analyse_month(this.month_data, weekdays_current_flat);
-                let weekdays_data_current = this.analyse_weekdays(this.weekdays_summed);
+                    day_data.push(value);
+                    this.month_data.push(parseInt(value));
+                    
+                    if (this.day_current != day) {                                   // condition per day
+                        this.day_current = day;
+                        this.weekdays_used = _.remove(this.weekdays_used, function(n) {
+                            return n != day;
+                        });
+                        day_data.forEach(value => {
+                            this.weekdays[day].push(parseInt(value));
+                        })
+                        day_data = [];
+                    } else if (this.weekdays_used.length == 0) {                     // condition per week
+                        this.weekdays.forEach((day, i) => {
+                            this.weekdays_summed[i].push(_.sum(day));
+                            this.weekdays_used = [0,1,2,3,4,5,6];
+                            this.weekdays = [[], [], [], [], [], [], []];
+                        })
+                    } else if ((this.month_current < month && this.month_current < 11)) {     
+                        // reset weekdays
+                        this.weekdays.forEach((day, i) => {
+                            this.weekdays_summed[i].push(_.sum(day));
+                            this.weekdays_used = [0,1,2,3,4,5,6];
+                            this.weekdays = [[], [], [], [], [], [], []];
+                        });
+                        
+                        this.weekdays_current_flat = _.flattenDeep(this.weekdays_summed);
+                        this.weekdays_data_current = this.analyse_weekdays(this.weekdays_summed);
+                        this.month_data_current = this.analyse_month(this.month_data, this.weekdays_current_flat, this.weekdays_data_current);
 
-                // add data to data object
-                
-                this.weekdays = [[], [], [], [], [], [], []];
+                        // console.log(this.month_data_current)
+                        // throw BreakException;
+                        
+                        // stations_temp[index_station].push(this.month_data_current);
+                        this.data_transformed[station.name][this.year].push(this.month_data_current);
+                        
+                        this.month_data = [];
+                        this.weekdays_summed = [[], [], [], [], [], [], []];
+                        this.month_current = month;                    // condition per month
+
+                    } else if (this.month_current == 11 && station_values.length == index_timeslot + 2) {
+                        // reset weekdays
+                        this.weekdays.forEach((day, i) => {
+                            this.weekdays_summed[i].push(_.sum(day));
+                            this.weekdays_used = [0,1,2,3,4,5,6];
+                            this.weekdays = [[], [], [], [], [], [], []];
+                        });
+                        
+                        this.weekdays_current_flat = _.flattenDeep(this.weekdays_summed);
+                        this.weekdays_data_current = this.analyse_weekdays(this.weekdays_summed);
+                        this.month_data_current = this.analyse_month(this.month_data, this.weekdays_current_flat, this.weekdays_data_current);
+
+                        // console.log(this.month_data_current)
+                        // throw BreakException;
+                        
+                        // stations_temp[index_station].push(this.month_data_current);
+                        this.data_transformed[station.name][this.year].push(this.month_data_current);
+                        
+                        this.month_data = [];
+                        this.weekdays_summed = [[], [], [], [], [], [], []];
+                        this.month_current = 0;                    // condition per month
+                    }
+                })
             }
-
-            
-            
-            // what happens if month is the last in sheet?
         })
+    }
 
+    move_temp_data(data_temp_year) {
+        this.data_transformed[this.station_name][this.year]
+    }
+
+    analyse_month(month_data, days, days_analysed) {
+        return {
+            month: this.month_current,
+            min: _.min(days),
+            max: _.max(days),
+            median: d3.median(days),
+            mean: Math.round(d3.mean(days)),
+            sum_month: _.sum(month_data),
+            sum_days: _.sum(days),
+            days: days_analysed
+        }
     }
 
     analyse_weekdays(days) {
@@ -226,20 +322,6 @@ class Tablehandler {
             )
         })
         return days_analysed;
-    }
-
-    analyse_month(month_data, days) {
-        return {
-            month: this.month_current,
-            min: _.min(days),
-            max: _.max(days),
-            median: d3.median(days),
-            mean: d3.mean(days),
-            sum: _.sum(month_data),
-            sum2: _.sum(days),
-            length: days.length,
-            length_month: month_data.length / 24
-        }
     }
 
     fill_with_current_month(stations) {
