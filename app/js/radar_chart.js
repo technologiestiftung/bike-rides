@@ -9,7 +9,7 @@ class Radarchart {
         this.margin = config.margin;
         this.max_value = config.max_value;
         this.factor_legend = config.factor_legend;
-        this.station_name, this.tooltip, this.month_dict, this.month_dict_long, this.all_axis_week, this.circles = {}, this.updateCount = 0
+        this.station_name, this.tooltip, this.month_dict, this.month_dict_long, this.all_axis_week, this.circles = {}, this.updateCount = 0, this.areas = {}
 
         this.file = file;
         this.radians = 2 * Math.PI;
@@ -21,7 +21,7 @@ class Radarchart {
         this.createSegments = this.createSegments.bind(this);
         this.createAxis = this.createAxis.bind(this);
         this.createCircles = this.createCircles.bind(this);
-        this.createArea = this.createArea.bind(this);
+        this.createAreas = this.createAreas.bind(this);
         this.createGraphics = this.createGraphics.bind(this);
         this.createTitle = this.createTitle.bind(this);
         this.updateTooltip = this.updateTooltip.bind(this);
@@ -141,29 +141,16 @@ class Radarchart {
     }
 
     createCircles(category, color) {
-        this.node_coords[category] = []
-        this.circles[category] = this.nodesWrapper.selectAll(`.${category}-circle`)
+        this.node_coords[category] = [];
+        this.circles[category] = this.nodesWrapper.selectAll(`.${category}-circle`);
         this.updateCircles(category, color);
 
-        this.createArea(this.node_coords[category], color, category);
+        this.createAreas(this.node_coords[category], color, category);
     }
 
-    createArea(data, color, category) {
-        this.areasWrapper.selectAll('.area')
-            .data([data])
-            .enter()
-            .append('polygon')
-            .classed(`${category}-area`, true)
-            .style("stroke-width", "2px")
-            .attr('points', d => {
-                let str = "";
-                for(var pti=0;pti<d.length;pti++) {
-                    str = str+d[pti][0]+","+d[pti][1]+" ";
-                }
-                return str;
-            })
-            .style('fill', color)
-            .attr('transform', `translate( ${(this.width/2 + this.margin.left) - this.factor}, ${(this.height/2 + this.margin.top)  - this.factor})`)
+    createAreas(data, color, category) {
+        this.areas[category] = this.areasWrapper.selectAll(`.${category}-area`);
+        this.updateAreas(this.node_coords[category], color, category);
     }
 
     createGraphics() {
@@ -204,9 +191,39 @@ class Radarchart {
         this.updateCircles('mean', 'blue');
     }
 
+    updateAreas(data, color, category) {
+        this.areas[category] = this.areasWrapper.selectAll(`.${category}-area`)
+            .data([data])
+        
+        this.areas[category].exit().remove()
+
+        this.areas[category] = this.areas[category]
+            .enter()
+            .append('polygon')
+            .classed(`${category}-area`, true)
+            .style("stroke-width", "2px")
+            .style('fill', color)
+            .merge(this.areas[category]);
+
+        this.areas[category]
+            .transition()
+            .duration(500)
+            .attr('points', d => {
+                let str = "";
+                for(var pti=0;pti<d.length;pti++) {
+                    str = str+d[pti][0]+","+d[pti][1]+" ";
+                }
+                return str;
+            })
+            .attr('transform', `translate( ${(this.width/2 + this.margin.left) - this.factor}, ${(this.height/2 + this.margin.top)  - this.factor})`)
+    }
+
     updateCircles(category, color) {
 
-        this.circles[category] = this.nodesWrapper.selectAll(`.${category}-circle`).data(this.data)
+        this.node_coords = {'mean':[], 'max':[]};
+
+        this.circles[category] = this.nodesWrapper.selectAll(`.${category}-circle`)
+            .data(this.data)
 
         this.circles[category].exit().remove()
 
@@ -222,7 +239,8 @@ class Radarchart {
             .on('mouseout', d => {
                 this.tooltip
                     .attr('style', 'display: none')
-            }).merge(this.circles[category]);
+            })
+            .merge(this.circles[category]);
         
         this.circles[category]
             .transition()
@@ -245,6 +263,8 @@ class Radarchart {
             })
             .attr('transform', `translate( ${(this.width/2 + this.margin.left) - this.factor}, ${(this.height/2 + this.margin.top)  - this.factor})`)
             
+            
+            this.updateAreas(this.node_coords[category], color, category);
     }
 
 }
