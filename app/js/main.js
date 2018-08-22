@@ -4,7 +4,7 @@ const filepath_v2 = "assets/structure.json";
 const years_array = [2012, 2013, 2014, 2015, 2016, 2017];
 const months_array = [0,1,2,3,4,5,6,7,8,9,10,11];
 const types_array = ['month', 'week'];
-let year_value, type_value, radarChart;
+let year_value, type_value, radarChart = [];
 
 let config  = {
     width: 180,
@@ -137,8 +137,8 @@ function removeCharts() {
 function updateChart(file, year) {
     d3.json(file).then((data) => {
         const files_array = Object.keys(data);
-        files_array.forEach(file => {
-            radarChart.updateGraphics(data[file][year]);
+        files_array.forEach((file,fi) => {
+            radarChart[fi].updateGraphics(data[file][year]);
         })
     })
 }
@@ -149,10 +149,10 @@ function renderChart(file, year) {
     
     d3.json(file).then((data) => {
         const files_array = Object.keys(data);
-        files_array.forEach(file => {
+        files_array.forEach((file,fi) => {
             // change: push all years into radarchart
-            radarChart = new Radarchart(data[file][year], config);
-            radarChart.init();
+            radarChart[fi] = new Radarchart(data[file][year], config);
+            radarChart[fi].init();
         })
     })
 };

@@ -9,13 +9,13 @@ class Radarchart {
         this.margin = config.margin;
         this.max_value = config.max_value;
         this.factor_legend = config.factor_legend;
-        this.station_name, this.tooltip, this.month_dict, this.month_dict_long, this.all_axis_week, this.circles = {}
+        this.station_name, this.tooltip, this.month_dict, this.month_dict_long, this.all_axis_week, this.circles = {}, this.updateCount = 0
 
         this.file = file;
         this.radians = 2 * Math.PI;
         this.segmentsWrapper, this.nodesWrapper, this.areasWrapper
         this.data, this.svg, this.all_axis, this.axis, this.title
-        this.total, this.node_coords;
+        this.total, this.node_coords = {'mean':[], 'max':[]};
 
         this.init = this.init.bind(this);
         this.createSegments = this.createSegments.bind(this);
@@ -27,7 +27,6 @@ class Radarchart {
         this.updateTooltip = this.updateTooltip.bind(this);
         this.updateCircles = this.updateCircles.bind(this);
         this.updateGraphics = this.updateGraphics.bind(this);
-        this.transitionCircles = this.transitionCircles.bind(this);
     }
 
     init(dataset) {
@@ -142,15 +141,11 @@ class Radarchart {
     }
 
     createCircles(category, color) {
-        let coords = [];
-        let single_coord = [];
-
-        this.circles[category] = this.nodesWrapper.selectAll(`circle.${category}-circle`)
-
+        this.node_coords[category] = []
+        this.circles[category] = this.nodesWrapper.selectAll(`.${category}-circle`)
         this.updateCircles(category, color);
 
-        this.node_coords = coords;
-        this.createArea(coords, color, category);
+        this.createArea(this.node_coords[category], color, category);
     }
 
     createArea(data, color, category) {
@@ -211,15 +206,11 @@ class Radarchart {
 
     updateCircles(category, color) {
 
-        console.log(this.circles[category])
-
-        this.circles[category] = this.nodesWrapper.selectAll(`${category}-circle`).data(this.data)
+        this.circles[category] = this.nodesWrapper.selectAll(`.${category}-circle`).data(this.data)
 
         this.circles[category].exit().remove()
 
-        this.transitionCircles(this.circles[category],category, color)
-
-        let newcircles = this.circles[category]
+        this.circles[category] = this.circles[category]
             .enter()
             .append('svg:circle')
             .classed(`${category}-circle`, true)
@@ -231,19 +222,9 @@ class Radarchart {
             .on('mouseout', d => {
                 this.tooltip
                     .attr('style', 'display: none')
-            })//.merge(this.circles[category]);
+            }).merge(this.circles[category]);
         
-        console.log(newcircles)
-
-        this.transitionCircles(newcircles,category, color)
-            
-    }
-
-    transitionCircles(circles, category, color){
-        let coords = [];
-        let single_coord = [];
-        
-        circles
+        this.circles[category]
             .transition()
             .duration(500)
             .attr('cx', (d,i) => {
@@ -251,13 +232,10 @@ class Radarchart {
                 let polar_coord_x = (this.width / 2) * (d[category] / this.max_value) * this.factor * Math.sin(i*this.radians / this.total);
                 let polar_coord_y = (this.height / 2) * (d[category] / this.max_value) * this.factor * Math.cos(i*this.radians / this.total);
 
+                let single_coord = [];
                 single_coord.push(polar_coord_x);
                 single_coord.push(polar_coord_y);
-                coords.push(single_coord);
-                
-                single_coord = [];
-
-                if(i==1) console.log(polar_coord_x)
+                this.node_coords[category].push(single_coord);
 
                 return polar_coord_x
             })
@@ -266,5 +244,7 @@ class Radarchart {
                 return polar_coord;
             })
             .attr('transform', `translate( ${(this.width/2 + this.margin.left) - this.factor}, ${(this.height/2 + this.margin.top)  - this.factor})`)
+            
     }
+
 }
