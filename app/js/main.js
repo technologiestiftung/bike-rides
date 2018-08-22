@@ -1,13 +1,15 @@
 const filepath = "assets/all_years.json";
 const filepath_v2 = "assets/structure.json";
 
+const values_array = ['absolute', 'relative'];
 const years_array = [2012, 2013, 2014, 2015, 2016, 2017];
 const months_array = [0,1,2,3,4,5,6,7,8,9,10,11];
 const types_array = ['month', 'week'];
-let year_value, type_value, radarChart = [];
+let year_value, type_value, metric_value, radarChart = [];
 
 let config  = {
     width: 180,
+    year: 2017,
     height: 180,
     levels: 10,
     radius: 2,
@@ -79,26 +81,55 @@ function create_filter_ui() {
         .classed('select-type', true)
         .on('change', onchange);
     
+    let value_select = ui_wrapper.append('select')
+        .classed('select-value', true)
+        .property('value', 'absolute')
+        .on('change', onchange);
+
+    let select_year = ui_wrapper.append('select')
+        .classed('select-year', true)
+        .property('value', 2017)
+        .on('change', onchange);
+    
     let type_options = type_select.selectAll('option')
         .data(types_array)
         .enter()
         .append('option')
+        .attr('selected', d => {
+            if (d == "month") {
+                return "selected";
+            }
+        })
         .text(d => { return d })
-    
-    let select_year = ui_wrapper.append('select')
-        .classed('select-year', true)
-        .on('change', onchange);
 
     let year_options = select_year.selectAll('option')
         .data(years_array)
         .enter()
         .append('option')
+        .attr('selected', d => {
+            if (d == "2017") {
+                return "selected";
+            }
+        })
         .text(d => { return d })
+
+    let value_options = value_select.selectAll('option')
+        .data(values_array)
+        .enter()
+        .append('option')
+        .attr('selected', d => {
+            if (d == "absolute") {
+                return "selected";
+            }
+        })
+        .text(d => { return d })
+
 }
 
 function onchange(selected_tag) {
     let year_value_temp = d3.select('.select-year').property('value');
     let type_value_temp = d3.select('.select-type').property('value');
+    let value_metric_temp = d3.select('.select-value').property('value');
     let used_selection;
 
     if (year_value_temp != year_value) {
@@ -107,16 +138,22 @@ function onchange(selected_tag) {
     } else if (type_value_temp != type_value) {
         used_selection = 'type';
         type_value = type_value_temp;
+    } else if (value_metric_temp != metric_value) {
+        used_selection = 'metric';
+        metric_value = value_metric_temp;
     }
 
     config.type = type_value;
+    config.value_metric = value_metric_temp;
+    config.year = year_value;
 
     if (used_selection == 'year') {
-        updateChart(filepath, year_value, type_value);
+        updateChart(filepath);
     } else if (used_selection == 'type') {
-        renderChart(filepath, year_value, type_value);
+        renderChart(filepath);
+    } else if (used_selection == 'metric') {
+        updateChart(filepath);
     }
-
 }
 
 function init(file) {
@@ -124,7 +161,7 @@ function init(file) {
     createWrapper();
     createTooltip();
 
-    renderChart(file, 2017);
+    renderChart(file, config);
 };
 
 function removeCharts() {
@@ -134,16 +171,16 @@ function removeCharts() {
     }
 }
 
-function updateChart(file, year) {
+function updateChart(file) {
     d3.json(file).then((data) => {
         const files_array = Object.keys(data);
         files_array.forEach((file,fi) => {
-            radarChart[fi].updateGraphics(data[file][year]);
+            radarChart[fi].updateGraphics(data[file][config.year], config);
         })
     })
 }
 
-function renderChart(file, year) {
+function renderChart(file, config_new) {
 
     removeCharts();
     
@@ -151,7 +188,7 @@ function renderChart(file, year) {
         const files_array = Object.keys(data);
         files_array.forEach((file,fi) => {
             // change: push all years into radarchart
-            radarChart[fi] = new Radarchart(data[file][year], config);
+            radarChart[fi] = new Radarchart(data[file][config.year], config);
             radarChart[fi].init();
         })
     })

@@ -9,9 +9,10 @@ class Radarchart {
         this.margin = config.margin;
         this.max_value = config.max_value;
         this.factor_legend = config.factor_legend;
-        this.station_name, this.tooltip, this.month_dict, this.month_dict_long, this.all_axis_week, this.circles = {}, this.updateCount = 0, this.areas = {}
+        this.station_name, this.tooltip, this.month_dict, this.month_dict_long, this.all_axis_week, this.circles = {}, this.updateCount = 0, this.areas = {},
+        this.days_dict = { 'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4, 'Friday': 5, 'Saturday': 6 }
 
-        this.file = file;
+        this.file = file, this.type, this.local_max, this.value_metric;
         this.radians = 2 * Math.PI;
         this.segmentsWrapper, this.nodesWrapper, this.areasWrapper
         this.data, this.svg, this.all_axis, this.axis, this.title
@@ -27,36 +28,77 @@ class Radarchart {
         this.updateTooltip = this.updateTooltip.bind(this);
         this.updateCircles = this.updateCircles.bind(this);
         this.updateGraphics = this.updateGraphics.bind(this);
+        this.mergeDays = this.mergeDays.bind(this);
+        this.calcMaxLocal = this.calcMaxLocal.bind(this);
     }
 
-    init(dataset) {
-            this.data = this.file;
-            // make all data accessible
-            this.station_name = this.file[0].name;
-            this.all_axis = (this.data.map((i,j) => {return i.month}));
-            // this.all_axis_week = this.data[0].days.length;
-            this.total = config.type == 'week' ? this.all_axis_week : this.all_axis.length;
+    init() {
+        this.type = config.type;
+        this.data = this.type == "week" ? this.mergeDays(this.file) : this.file;
+        this.station_name = this.file[0].name;
+        this.all_axis = (this.data.map((i,j) => {return i.month}));
+        this.all_axis_week = [0,1,2,3,4,5,6];
+        this.total = config.type == 'week' ? this.all_axis_week.length : this.all_axis.length;
 
-            this.svg = d3.select('.chart-wrapper')
-                .append('svg')
-                .attr('width', this.width + this.margin.left + this.margin.right)
-                .attr('height', this.height + this.margin.top + this.margin.bottom)
-                
-            this.segmentsWrapper = this.svg.append('g')
-                .classed('segments-wrapper', true)
+        this.svg = d3.select('.chart-wrapper')
+            .append('svg')
+            .attr('width', this.width + this.margin.left + this.margin.right)
+            .attr('height', this.height + this.margin.top + this.margin.bottom)
             
-            this.nodesWrapper = this.svg.append('g')
-                .classed('nodes-wrapper', true)
-            
-            this.areasWrapper = this.svg.append('g')
-                .classed('areas-wrapper', true)
-            
-            this.title = this.svg.append('g')
-                .classed('title-wrapper', true)
+        this.segmentsWrapper = this.svg.append('g')
+            .classed('segments-wrapper', true)
+        
+        this.nodesWrapper = this.svg.append('g')
+            .classed('nodes-wrapper', true)
+        
+        this.areasWrapper = this.svg.append('g')
+            .classed('areas-wrapper', true)
+        
+        this.title = this.svg.append('g')
+            .classed('title-wrapper', true)
 
-            this.createSegments();
-            this.createTitle();
-            // this.switchData();
+        this.createSegments();
+        this.createTitle();
+        // this.switchData();
+    }
+
+    mergeDays(data) {
+        let data_temp = data.map((i,j) => {
+            return i.days;
+        })
+
+        var selected_keys = ['name', 'min', 'max', 'median', 'mean'];
+        var days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+        let sum = [{}, {}, {}, {}, {}, {}, {}];
+
+        data_temp.forEach(month => {
+            month.forEach((day, i) => {
+                let day_current = day['day'];
+                selected_keys.forEach(key => {
+
+                    if (day[key] == undefined) {
+                        day[key] = 0;
+                    }
+
+                    if (key == 'name') {
+                        sum[i][key] = day[key];
+                    } else {
+                        sum[i][key] = (sum[i][key] || 0) + day[key];
+                    }
+
+                });
+            })
+        })
+
+        sum.forEach(day => {
+            day.min = Math.round(day.min / 12);
+            day.max = Math.round(day.max / 12);
+            day.median = Math.round(day.median / 12);
+            day.mean = Math.round(day.mean / 12);
+        })
+
+        return sum;
     }
 
     createSegments() {
@@ -94,6 +136,8 @@ class Radarchart {
     }
         
     createAxis() {
+        let data_axis = this.type == 'week' ? this.all_axis_week : this.all_axis;
+
         this.month_dict = {
             0: 'Jan', 1: 'Feb', 2: 'Mar', 3: 'Apr', 4: 'Mai', 5: 'Jun', 6: 'Jul', 7: 'Aug', 8: 'Sep', 9: 'Okt', 10: 'Nov', 11: 'Dec'
         }
@@ -102,8 +146,12 @@ class Radarchart {
             0: 'January', 1: 'February', 2: 'March', 3: 'April', 4: 'May', 5: 'June', 6: 'July', 7: 'August', 8: 'September', 9: 'October', 10: 'November', 11: 'December'
         }
 
+        this.week_dict = { 0: 'Sun', 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat' }
+
+        let dict_axis = this.type == 'week' ? this.week_dict : this.month_dict;
+
         this.axis = this.segmentsWrapper.selectAll('.axis')
-            .data(this.all_axis)
+            .data(data_axis)
             .enter()
             .append('g')
             .classed('axis', true)
@@ -125,7 +173,8 @@ class Radarchart {
         this.axis.append('text')
             .attr('class', 'legend')
             .text(d => { 
-                return this.month_dict[d]})
+                // console.log(d);
+                return dict_axis[d]})
             .style('font-size', '10px')
             .attr('color', 'blue')
             .attr("text-anchor", "middle")
@@ -158,7 +207,6 @@ class Radarchart {
         this.createCircles('mean', 'blue');
     }
 
-
     createTitle() {
         this.title.append('text')
             .text(this.station_name)
@@ -180,15 +228,43 @@ class Radarchart {
             .attr('style', `left: ${x}px; top: ${y}px; position: absolute`)
     }
 
-    updateGraphics(new_data) {
+    updateGraphics(new_data, config_new) {
+        this.type = config_new.type;
+        this.value_metric = config_new.value_metric;
         this.data = new_data;
-        this.width = config.width;
-        this.max_value = config.max_value;
+        this.max_local = this.calcMaxLocal(this.data);
 
-        // console.log(config.max_value);
+        if (this.value_metric == 'relative') {
+            this.max_value = this.max_local.max;
+        } else if (this.value_metric == 'absolute') {
+            this.max_value = config.max_value;
+        }
+
 
         this.updateCircles('max', 'red');
         this.updateCircles('mean', 'blue');
+    }
+
+    calcMaxLocal(data_obj) {
+        let max_local_object = {
+            min: [],
+            max: [],
+            mean: [],
+            median: []
+        };
+
+        data_obj.forEach(timeslot => {
+            max_local_object['min'].push(timeslot['min']);
+            max_local_object['max'].push(timeslot['max']);
+            max_local_object['mean'].push(timeslot['mean']);
+            max_local_object['median'].push(timeslot['median']);
+        })
+
+        for (const key in max_local_object) {
+            max_local_object[key] = d3.max(max_local_object[key]);
+        }
+
+        return max_local_object;
     }
 
     updateAreas(data, color, category) {
@@ -219,7 +295,6 @@ class Radarchart {
     }
 
     updateCircles(category, color) {
-
         this.node_coords = {'mean':[], 'max':[]};
 
         this.circles[category] = this.nodesWrapper.selectAll(`.${category}-circle`)
@@ -246,7 +321,6 @@ class Radarchart {
             .transition()
             .duration(500)
             .attr('cx', (d,i) => {
-                let value_temp = config.type == "week" ? d.days[category] : d[category];
                 let polar_coord_x = (this.width / 2) * (d[category] / this.max_value) * this.factor * Math.sin(i*this.radians / this.total);
                 let polar_coord_y = (this.height / 2) * (d[category] / this.max_value) * this.factor * Math.cos(i*this.radians / this.total);
 

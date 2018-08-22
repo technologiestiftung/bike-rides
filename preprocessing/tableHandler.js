@@ -136,7 +136,7 @@ class Tablehandler {
 
     parseData(json) {  
         // '2012', '2013', '2014', '2015', '2016', 
-        let years = ['2012']
+        let years = ['2017']
         fs.readFile(json, 'utf8', (err, data) => {
            if (err) throw err;
            this.data = JSON.parse(data);
@@ -333,6 +333,7 @@ class Tablehandler {
         days.forEach((day, index) => {
             days_analysed.push(
                 {
+                    "name": this.station_name,
                     "day": day_dict[index],
                     "min": _.min(day),
                     "max": _.max(day),
