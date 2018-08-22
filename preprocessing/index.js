@@ -16,4 +16,4 @@ const tableHandler = new Tablehandler();
 // tableHandler.parseData(json);
 
 // 3. merge jsons (run: mergeJsons);
-// tableHandler.mergeJsons(files);
+tableHandler.createObj(files);

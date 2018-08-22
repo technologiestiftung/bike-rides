@@ -6,6 +6,12 @@
   position: absolute;
   transform: translateY(275px) translateX(95px); }
 
+.tooltip-wrapper {
+  border: 1px solid grey;
+  background: white;
+  width: 200px;
+  height: 100px; }
+
 body {
   font: 10px sans-serif;
   margin: 0; }

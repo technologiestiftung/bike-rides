@@ -9,6 +9,7 @@ class Radarchart {
         this.margin = config.margin;
         this.max_value = config.max_value;
         this.factor_legend = config.factor_legend;
+        this.station_name, this.tooltip, this.month_dict, this.month_dict_long, this.all_axis_week, this.circles = {}
 
         this.file = file;
         this.radians = 2 * Math.PI;
@@ -23,14 +24,21 @@ class Radarchart {
         this.createArea = this.createArea.bind(this);
         this.createGraphics = this.createGraphics.bind(this);
         this.createTitle = this.createTitle.bind(this);
+        this.updateTooltip = this.updateTooltip.bind(this);
+        this.updateCircles = this.updateCircles.bind(this);
+        this.updateGraphics = this.updateGraphics.bind(this);
+        this.transitionCircles = this.transitionCircles.bind(this);
     }
 
-    init() {
+    init(dataset) {
             this.data = this.file;
+            // make all data accessible
+            this.station_name = this.file[0].name;
             this.all_axis = (this.data.map((i,j) => {return i.month}));
-            this.total = this.all_axis.length;
+            // this.all_axis_week = this.data[0].days.length;
+            this.total = config.type == 'week' ? this.all_axis_week : this.all_axis.length;
 
-            this.svg = d3.select('body')
+            this.svg = d3.select('.chart-wrapper')
                 .append('svg')
                 .attr('width', this.width + this.margin.left + this.margin.right)
                 .attr('height', this.height + this.margin.top + this.margin.bottom)
@@ -49,6 +57,7 @@ class Radarchart {
 
             this.createSegments();
             this.createTitle();
+            // this.switchData();
     }
 
     createSegments() {
@@ -86,8 +95,12 @@ class Radarchart {
     }
         
     createAxis() {
-        let month_dict = {
+        this.month_dict = {
             0: 'Jan', 1: 'Feb', 2: 'Mar', 3: 'Apr', 4: 'Mai', 5: 'Jun', 6: 'Jul', 7: 'Aug', 8: 'Sep', 9: 'Okt', 10: 'Nov', 11: 'Dec'
+        }
+
+        this.month_dict_long = {
+            0: 'January', 1: 'February', 2: 'March', 3: 'April', 4: 'May', 5: 'June', 6: 'July', 7: 'August', 8: 'September', 9: 'October', 10: 'November', 11: 'December'
         }
 
         this.axis = this.segmentsWrapper.selectAll('.axis')
@@ -97,18 +110,23 @@ class Radarchart {
             .classed('axis', true)
         
         this.axis.append('line')
-            .attr('x1', (this.width / 2 + this.margin.left))
-            .attr('y1', (this.height / 2 + this.margin.top))
-            .attr('x2', (d,i) => { return ((this.width) / 2) * (1-this.factor * Math.sin(i * this.radians + Math.PI / this.total)) + this.margin.left })
-            .attr('y2', (d,i) => { return ((this.height) / 2) * (1-this.factor * Math.cos (i * this.radians + Math.PI / this.total)) + this.margin.top })
+            .attr('x1', (this.margin.left))
+            .attr('y1', (this.margin.top))
+            .attr('x2', (d,i) => { 
+                return (this.width / 2) * (this.factor * Math.sin(i  * this.radians / this.total)) + this.margin.left;
+            })
+            .attr('y2', (d,i) => { 
+                return (this.height / 2) * (this.factor * Math.cos (i * this.radians / this.total)) + this.margin.top;
+            })
             .attr("class", "line")
             .style('stroke', '#E8E8E8')
             .style("stroke-width", "1px")
+            .attr('transform', `translate( ${this.width/2 }, ${this.height/2 })`)
         
         this.axis.append('text')
             .attr('class', 'legend')
             .text(d => { 
-                return month_dict[d]})
+                return this.month_dict[d]})
             .style('font-size', '10px')
             .attr('color', 'blue')
             .attr("text-anchor", "middle")
@@ -123,41 +141,13 @@ class Radarchart {
             this.createGraphics();
     }
 
-    createGraphics() {
-        this.createCircles('max', 'red');
-        this.createCircles('min', 'green');
-        this.createCircles('mean', 'blue');
-    }
-
     createCircles(category, color) {
         let coords = [];
         let single_coord = [];
-        this.nodesWrapper.selectAll('.nodes')
-            .data(this.data)
-            .enter()
-            .append('svg:circle')
-            .attr('fill', color)
-            .attr('r', this.radius)
-            .attr('cx', (d,i) => {
 
-                // console.log(`${category}: ${d[category]}, ${i}`)
+        this.circles[category] = this.nodesWrapper.selectAll(`circle.${category}-circle`)
 
-                let polar_coord_x = (this.width / 2) * (d[category] / this.max_value) * this.factor * Math.sin(i*this.radians / this.total);
-                let polar_coord_y = (this.height / 2) * (d[category] / this.max_value) * this.factor * Math.cos(i*this.radians / this.total);
-
-                single_coord.push(polar_coord_x);
-                single_coord.push(polar_coord_y);
-                coords.push(single_coord);
-                
-                single_coord = [];
-
-                return polar_coord_x
-            })
-            .attr("cy", (d,i) => {
-                let polar_coord = this.height / 2 * (d[category] / this.max_value)*this.factor* Math.cos(i*this.radians/this.total);
-                return polar_coord;
-              })
-            .attr('transform', `translate( ${(this.width/2 + this.margin.left) - this.factor}, ${(this.height/2 + this.margin.top)  - this.factor})`)
+        this.updateCircles(category, color);
 
         this.node_coords = coords;
         this.createArea(coords, color, category);
@@ -181,13 +171,100 @@ class Radarchart {
             .attr('transform', `translate( ${(this.width/2 + this.margin.left) - this.factor}, ${(this.height/2 + this.margin.top)  - this.factor})`)
     }
 
+    createGraphics() {
+        this.createCircles('max', 'red');
+        this.createCircles('mean', 'blue');
+    }
+
+
     createTitle() {
         this.title.append('text')
-            .data(this.data)
-            .text(d => {
-                return d.location;
-            })
+            .text(this.station_name)
             .classed('title', true)
     }
 
+    updateTooltip(data) {
+        let x = d3.event.pageX + 10;
+        let y = d3.event.pageY + 10;
+
+        this.tooltip = d3.select('#tooltip');
+
+        d3.select('.month-wrapper').text(this.month_dict_long[data.month]);
+        d3.select('#median-value').text(data.median);
+        d3.select('#max-value').text(data.max);
+        d3.select('#total-value').text(data.sum_days);
+
+        this.tooltip
+            .attr('style', `left: ${x}px; top: ${y}px; position: absolute`)
+    }
+
+    updateGraphics(new_data) {
+        this.data = new_data;
+        this.width = config.width;
+        this.max_value = config.max_value;
+
+        // console.log(config.max_value);
+
+        this.updateCircles('max', 'red');
+        this.updateCircles('mean', 'blue');
+    }
+
+    updateCircles(category, color) {
+
+        console.log(this.circles[category])
+
+        this.circles[category] = this.nodesWrapper.selectAll(`${category}-circle`).data(this.data)
+
+        this.circles[category].exit().remove()
+
+        this.transitionCircles(this.circles[category],category, color)
+
+        let newcircles = this.circles[category]
+            .enter()
+            .append('svg:circle')
+            .classed(`${category}-circle`, true)
+            .attr('fill', color)
+            .attr('r', this.radius)
+            .on('mouseover', d => {
+                this.updateTooltip(d);
+            })
+            .on('mouseout', d => {
+                this.tooltip
+                    .attr('style', 'display: none')
+            })//.merge(this.circles[category]);
+        
+        console.log(newcircles)
+
+        this.transitionCircles(newcircles,category, color)
+            
+    }
+
+    transitionCircles(circles, category, color){
+        let coords = [];
+        let single_coord = [];
+        
+        circles
+            .transition()
+            .duration(500)
+            .attr('cx', (d,i) => {
+                let value_temp = config.type == "week" ? d.days[category] : d[category];
+                let polar_coord_x = (this.width / 2) * (d[category] / this.max_value) * this.factor * Math.sin(i*this.radians / this.total);
+                let polar_coord_y = (this.height / 2) * (d[category] / this.max_value) * this.factor * Math.cos(i*this.radians / this.total);
+
+                single_coord.push(polar_coord_x);
+                single_coord.push(polar_coord_y);
+                coords.push(single_coord);
+                
+                single_coord = [];
+
+                if(i==1) console.log(polar_coord_x)
+
+                return polar_coord_x
+            })
+            .attr("cy", (d,i) => {
+                let polar_coord = this.height / 2 * (d[category] / this.max_value)*this.factor* Math.cos(i*this.radians/this.total);
+                return polar_coord;
+            })
+            .attr('transform', `translate( ${(this.width/2 + this.margin.left) - this.factor}, ${(this.height/2 + this.margin.top)  - this.factor})`)
+    }
 }

@@ -13,7 +13,7 @@ class Tablehandler {
         this.month_current = 0;
         this.day_current = 0;
         this.timestamp;
-        this.year;
+        this.year, this.obj;
         this.month_data = [];
         this.weekdays = [[], [], [], [], [], [], []];
         this.weekdays_summed = [[], [], [], [], [], [], []];
@@ -66,6 +66,7 @@ class Tablehandler {
         this.analyse_month = this.analyse_month.bind(this);
         this.move_temp_data = this.move_temp_data.bind(this);
         this.mergeJsons = this.mergeJsons.bind(this);
+        this.createObj = this.createObj.bind(this);
     }
 
     parseXlsx2Json(filepath) {
@@ -104,22 +105,38 @@ class Tablehandler {
         this.writeFile('location' , JSON.stringify(obj));
     }
 
-    mergeJsons(file_array) {
+    createObj(file_array) {
+        fs.readFile('./data/object_structure.json', 'utf8', (err, data) => {
+            this.obj = JSON.parse(data);
+            this.mergeJsons(file_array, this.obj);
+        })
+    }
+
+    mergeJsons(file_array, obj) {
+        
         file_array.forEach((file, i) => {
+            let year = file.slice(0,4)
             let file_path = `./data/${file}`;
             fs.readFile(file_path, 'utf8', (err, data) => {
-                if (i == 0) {
-                }
                 this.data = JSON.parse(data);
-                // console.log(this.data_transformed);
+                let stations_array = [];
+                for(var key in this.data) {
+                    stations_array.push(key);
+                }
+                
+                for (var station in this.data) {
+                    if (this.data[station] != undefined && this.obj[station] != undefined) {
+                            this.obj[station][year] = this.data[station][year];
+                    }
+                }
+                this.writeFile('all_years', JSON.stringify(this.obj));
             })
         })
-        console.log(this.data);
     }
 
     parseData(json) {  
         // '2012', '2013', '2014', '2015', '2016', 
-        let years = ['2013']
+        let years = ['2012']
         fs.readFile(json, 'utf8', (err, data) => {
            if (err) throw err;
            this.data = JSON.parse(data);
@@ -140,7 +157,11 @@ class Tablehandler {
         let dict = {};
         
         d_new.forEach((station,index) => {
-            dict[station[0]] = station[1];
+            if (station[1] == null) {
+                dict[station[0]] = station[2];
+            } else {
+                dict[station[0]] = station[1];
+            }
         })
         return dict;
     }
@@ -193,7 +214,6 @@ class Tablehandler {
 
     parse_data(structured_data) {
         let BreakException = {};
-
         let stations_temp = [];
 
         for (let index = 0; index < 27; index++) {
@@ -202,6 +222,7 @@ class Tablehandler {
 
         structured_data.forEach((station, index_station) => {
             if(station.index > -1) {
+
                 this.station_name = station.name;
                 const station_values = station.values;
                 if (station.values[0] != undefined) {
@@ -220,7 +241,6 @@ class Tablehandler {
                     const year = time.getYear() + 1900;
 
                     let months_test = [];
-
                     this.year = year;
                 
                     day_data.push(value);
@@ -296,14 +316,14 @@ class Tablehandler {
 
     analyse_month(month_data, days, days_analysed) {
         return {
+            name: this.station_name,
             month: this.month_current,
             min: _.min(days),
             max: _.max(days),
             median: d3.median(days),
             mean: Math.round(d3.mean(days)),
-            sum_month: _.sum(month_data),
             sum_days: _.sum(days),
-            days: days_analysed
+            days: days_analysed,
         }
     }
 
@@ -322,40 +342,6 @@ class Tablehandler {
             )
         })
         return days_analysed;
-    }
-
-    fill_with_current_month(stations) {
-        let rides_per_month = _.sum(month_values);
-            let median = d3.median(month_values);
-            let mean = d3.mean(month_values);
-            let month_min = _.min(month_values);
-            let month_max = _.max(month_values);
-            let lat = "here add lng value";
-            let lng = "here add lat value";
-            let location = "here add location";
-
-            data_transformed.push(
-                {
-                    "year": year,
-                    "month": this.current_month,
-                    "min": month_min,
-                    "max": month_max,
-                    "median": median,
-                    "mean": mean,
-                    "lat": lat,
-                    "lng": lng,
-                    "location": location,
-                    "rides_per_month": rides_per_month,
-                }
-            );
-
-            month_values = [];
-            lat = 0;
-            lng = 0;
-            month_min = 0;
-            month_max = 0;
-            mean = 0;
-            location = '';
     }
 
     readCSV(filepath) {
