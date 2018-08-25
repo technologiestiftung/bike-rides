@@ -13,6 +13,7 @@
     flex-direction: column;
     overflow: auto;
     animation: .25s fadeInFromNone ease;
+    opacity: 1;
 
     .median, .max, .total {
         margin-bottom: 5px;

@@ -1,11 +1,14 @@
 const filepath = "assets/all_years.json";
 const filepath_v2 = "assets/structure.json";
 
-const values_array = ['Select metric', 'absolute', 'relative'];
-const years_array = ['Select year', 2012, 2013, 2014, 2015, 2016, 2017];
+const values_array = ['absolute', 'relative'];
+const years_array = [2012, 2013, 2014, 2015, 2016, 2017];
 const months_array = [0,1,2,3,4,5,6,7,8,9,10,11];
-const types_array = ['Select cycle' ,'month', 'week'];
+const types_array = ['month', 'week'];
 let year_value, type_value, metric_value, radarChart = [], charts_wrapper;
+var x, i, j, selElmnt, a, b, c;
+
+
 
 const grid_dict = [
     {
@@ -260,7 +263,7 @@ let config  = {
     year: 2017,
     height: 75,
     width: 75,
-    levels: 10,
+    levels: 5,
     radius: 2,
     factor: 1,
     type: "month",
@@ -296,6 +299,7 @@ function createTooltip() {
         .append('div')
         .classed('tooltip-wrapper', true)
         .attr('id', 'tooltip')
+        .style('display', 'none')
     
     tooltip.append('div')
         .classed('station-wrapper', true)
@@ -351,8 +355,7 @@ function create_filter_ui() {
     
     let type_select = type_select_wrapper
         .append('select')
-            // .classed('select-type', true)
-            .on('change', onchange);
+            .classed('select-type', true)
     
     let value_select_wrapper = ui_wrapper.append('div')
         .classed('custom-select', true)
@@ -360,8 +363,6 @@ function create_filter_ui() {
 
     let value_select = value_select_wrapper.append('select')
         .classed('select-value', true)
-        .property('value', 'absolute')
-        .on('change', onchange);
 
     let select_year_wrapper = ui_wrapper.append('div')
         .classed('custom-select', true)
@@ -369,22 +370,22 @@ function create_filter_ui() {
     
     let select_year = select_year_wrapper.append('select')
         .classed('select-year', true)
-        .on('change', onchange);
     
     let type_options = type_select.selectAll('option')
         .data(types_array)
         .enter()
         .append('option')
         .text(d => { return d })
+        .property('value', d => {
+            return d == "month" ? true : false;
+        })
 
     let year_options = select_year.selectAll('option')
         .data(years_array)
         .enter()
         .append('option')
-        .attr('selected', d => {
-            if (d == "2017") {
-                return "selected";
-            }
+        .property('value', d => {
+            return d == "2017" ? true : false;
         })
         .text(d => { return d })
 
@@ -392,21 +393,21 @@ function create_filter_ui() {
         .data(values_array)
         .enter()
         .append('option')
-        .attr('selected', d => {
-            if (d == "absolute") {
-                return "selected";
-            }
-        })
         .text(d => { return d })
+        .property('value', d => {
+            return d == 'absolute' ? true : false;
+        })
 
 }
 
-function onchange(selected_tag) {
-    let year_value_temp = d3.select('.select-year').property('value');
-    let type_value_temp = d3.select('.select-type').property('value');
-    let value_metric_temp = d3.select('.select-value').property('value');
+function onchange() {
+    
+    let year_value_temp = d3.select('div.select-selected.year').html();
+    let type_value_temp = d3.select('div.select-selected.cycle').html();
+    let value_metric_temp = d3.select('div.select-selected.metric').html();
     let used_selection;
 
+    
     if (year_value_temp != year_value) {
         used_selection = 'year';
         year_value = year_value_temp;
@@ -417,10 +418,12 @@ function onchange(selected_tag) {
         used_selection = 'metric';
         metric_value = value_metric_temp;
     }
-
-    config.type = type_value;
+    
+    config.type = type_value_temp;
     config.value_metric = value_metric_temp;
-    config.year = year_value;
+    config.year = parseInt(year_value);
+
+    console.log(type_value);
 
     if (used_selection == 'year') {
         updateChart(filepath);
@@ -507,15 +510,35 @@ function renderChart(file, config_new) {
 
 init(filepath);
 
+let selects = { year: '2017', type: 'month', value: 'absolute' };
 
-var x, i, j, selElmnt, a, b, c;
+function checkSelection(selected_current) {
+    let content_current = selected_current.innerHTML;
+    let select_current = selected_current.previousSibling.classList[0];
+    
+    d3.select(`.${select_current}`).selectAll('option').property('value', (d,i) => {
+        return content_current == d ? true : false;
+    });
+
+    if (selects[select_current.slice(7)] != content_current) {
+        selects[select_current.slice(7)] = content_current;
+        onchange();
+    }
+}
+
+
 /*look for any elements with the class "custom-select":*/
 x = document.getElementsByClassName("custom-select");
 for (i = 0; i < x.length; i++) {
   selElmnt = x[i].getElementsByTagName("select")[0];
   /*for each element, create a new DIV that will act as the selected item:*/
   a = document.createElement("DIV");
-  a.setAttribute("class", "select-selected");
+  
+  if (i == 0) { a.setAttribute("class", "select-selected cycle"); }
+  if (i == 1) { a.setAttribute("class", "select-selected metric"); }
+  if (i == 2) { a.setAttribute("class", "select-selected year"); }
+
+  a.setAttribute('onclick', "checkSelection(this)")
   a.innerHTML = selElmnt.options[selElmnt.selectedIndex].innerHTML;
   x[i].appendChild(a);
   /*for each element, create a new DIV that will contain the option list:*/

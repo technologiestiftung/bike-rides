@@ -77,7 +77,8 @@ text.legend {
   display: flex;
   flex-direction: column;
   overflow: auto;
-  animation: .25s fadeInFromNone ease; }
+  animation: .25s fadeInFromNone ease;
+  opacity: 1; }
   .tooltip-wrapper .median, .tooltip-wrapper .max, .tooltip-wrapper .total {
     margin-bottom: 5px;
     display: flex;
@@ -134,8 +135,9 @@ span#total-value {
   letter-spacing: .5px; }
 
 .custom-select select {
-  display: none;
-  /*hide original SELECT element:*/ }
+  position: absolute;
+  opacity: 0;
+  top: -100px; }
 
 .select-selected {
   background-color: #FCFCFC;
@@ -154,7 +156,7 @@ span#total-value {
 
 /*point the arrow upwards when the select box is open (active):*/
 .select-selected.select-arrow-active:after {
-  border-color: transparent transparent #fff transparent;
+  border-color: transparent transparent #9B9B9B transparent;
   top: 7px; }
 
 /*style the items (options), including the selected item:*/
