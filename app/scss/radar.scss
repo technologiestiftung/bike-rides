@@ -1,14 +1,87 @@
-.area {
-    &-max {
-        fill-opacity: 50%;
-        stroke: green;
+.title-wrapper {
+    text-anchor: middle;
+    fill: black;
+    transform: translateY(125px) translateX(67px);
+
+    .title {
+        font-family: 'Barlow', sans-serif;
+        letter-spacing: .5px;
+        font-size: 11px;
     }
 }
 
-.legend {
+.charts-wrapper {
+    width: 995px;
+    position: relative;
+    z-index: 1000;
+    display: block;
+    margin: auto;
+
+    @media screen and (max-width: 995px) {
+        width: 100%;
+    }
+
+    .svg-wrapper {
+        z-index: 10000;
+
+        &.empty {
+            @media screen and (max-width: 995px) {
+                display: none;
+            }
+        }
+    }
 }
 
-.title-wrapper {
+.max-circle, .mean-circle {
+    opacity: .25;
+    &.highlighted {
+        opacity: 1;
+    }
+}
+
+.ui-wrapper {
+    z-index: 100000;
+    display: flex;
+    flex-direction: row;
+
+    .custom-select {
+        z-index: 100000;
+    }
+}
+
+text.legend {
+    text-transform: uppercase;
+    font-family: 'Barlow', sans-serif;
+    font-weight: regular;
+    font-size: 8px;
+    letter-spacing: .4px;
+    opacity: .35;
+    animation: 1s opacity ease;
+    cursor: pointer;
+
+    &.highlighted {
+        animation: 1s opacity ease;
+        opacity: 1;
+    }
+}
+
+.spree-wrapper {
     position: absolute;
-    transform: translateY(275px) translateX(95px);
+}
+
+.max-area, .mean-area {
+    opacity: .5;
+}
+
+.river-svg-wrapper {
+    height: 100%;
+    top: 405px;
+    left: -11px;
+    z-index: -1000;
+    width: 100%;
+    position: absolute;
+
+    @media screen and (max-width: 995px) {
+        display: none;
+    }
 }

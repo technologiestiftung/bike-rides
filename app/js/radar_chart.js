@@ -6,10 +6,10 @@ class Radarchart {
         this.levels = config.levels;
         this.radius = config.radius;
         this.factor = config.factor;
-        this.margin = config.margin;
+        this.margin = config.margin;        
         this.max_value = config.max_value;
         this.factor_legend = config.factor_legend;
-        this.station_name, this.tooltip, this.month_dict, this.month_dict_long, this.all_axis_week, this.circles = {}, this.updateCount = 0, this.areas = {},
+        this.station_name, this.tooltip, this.month_dict, this.month_dict_long, this.all_axis_week, this.circles = {}, this.updateCount = 0, this.areas = {}, this.category, this.titleName, this.year, this.colorMax, this.colorMean
         this.days_dict = { 'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4, 'Friday': 5, 'Saturday': 6 }
 
         this.file = file, this.type, this.local_max, this.value_metric;
@@ -30,21 +30,35 @@ class Radarchart {
         this.updateGraphics = this.updateGraphics.bind(this);
         this.mergeDays = this.mergeDays.bind(this);
         this.calcMaxLocal = this.calcMaxLocal.bind(this);
+        this.highlightMonths = this.highlightMonths.bind(this);
+        this.unhighlightMonths = this.unhighlightMonths.bind(this);
+        this.highlightAll = this.highlightAll.bind(this);
+        this.unhighlightAll = this.unhighlightAll.bind(this);
     }
 
-    init() {
+    init(station_index) {
         this.type = config.type;
         this.data = this.type == "week" ? this.mergeDays(this.file) : this.file;
         this.station_name = this.file[0].name;
         this.all_axis = (this.data.map((i,j) => {return i.month}));
         this.all_axis_week = [0,1,2,3,4,5,6];
+        this.year = config.year;
         this.total = config.type == 'week' ? this.all_axis_week.length : this.all_axis.length;
+        this.colorMax = "#3ce39f"
+        this.colorMean = "#2824b2"
 
-        this.svg = d3.select('.chart-wrapper')
-            .append('svg')
-            .attr('width', this.width + this.margin.left + this.margin.right)
-            .attr('height', this.height + this.margin.top + this.margin.bottom)
-            
+        this.svg = d3.select(`svg.wrapper-${station_index}`)
+            .on('mouseover', (d,i) => {
+                d3.selectAll('.mean-area').style('opacity', .15);
+                d3.selectAll('.max-area').style('opacity', .15);
+                this.svg.select('.mean-area').style('opacity', 1);
+                this.svg.select('.max-area').style('opacity', 1);
+            })    
+            .on('mouseout', (d,i) => {
+                d3.selectAll('.mean-area').style('opacity', .5);
+                d3.selectAll('.max-area').style('opacity', .5);
+            })    
+        
         this.segmentsWrapper = this.svg.append('g')
             .classed('segments-wrapper', true)
         
@@ -171,20 +185,29 @@ class Radarchart {
             .attr('transform', `translate( ${this.width/2 }, ${this.height/2 })`)
         
         this.axis.append('text')
-            .attr('class', 'legend')
             .text(d => { 
                 // console.log(d);
                 return dict_axis[d]})
-            .style('font-size', '10px')
-            .attr('color', 'blue')
             .attr("text-anchor", "middle")
+            .attr('class', (d,i) => {
+                return `legend-${i} legend`
+            })
             .attr('x', (d,i) => {
-                return (this.width / 2) * (this.factor * Math.sin(i * this.radians / this.total)) + 15 * Math.sin(i * this.radians / this.total)  + this.margin.left;
+                return (this.width / 2) * (this.factor * Math.sin(i * this.radians / this.total)) + 13 * (this.factor * Math.sin(i * this.radians / this.total)) + this.margin.left;
             })
             .attr('y', (d,i) => {
-                return (this.height / 2) * (this.factor * Math.cos (i * this.radians / this.total)) + 15 * Math.cos(i * this.radians / this.total)  + this.margin.top;
+                return (this.height / 2) * (this.factor * Math.cos (i * this.radians / this.total)) + 13 * (this.factor * Math.cos(i * this.radians / this.total)) + this.margin.top + 4;
             })
-            .attr('transform', `translate( ${this.width/2 }, ${this.height/2 })`)
+            .attr('transform', `translate(${this.width/2 }, ${this.height/2 })`)
+            .on('mouseover', (d,i) => {
+                this.updateTooltip(d, i);
+                this.highlightMonths(this.data, this.category, i);
+            })
+            .on('mouseout', (d,i) => {
+                this.tooltip
+                    .attr('style', 'display: none')
+                this.unhighlightMonths(d, this.category, i);
+            })
 
             this.createGraphics();
     }
@@ -203,29 +226,35 @@ class Radarchart {
     }
 
     createGraphics() {
-        this.createCircles('max', 'red');
-        this.createCircles('mean', 'blue');
+        this.createCircles('max', this.colorMax);
+        this.createCircles('mean', this.colorMean);
     }
 
     createTitle() {
-        this.title.append('text')
-            .text(this.station_name)
-            .classed('title', true)
+        d3.json('/assets/names_dict.json').then(data => {
+            this.titleName = data[this.station_name];
+            this.title.append('text')
+                .text(this.titleName)
+                .classed('title', true)
+        })
     }
 
-    updateTooltip(data) {
+    updateTooltip(data, index) {
         let x = d3.event.pageX + 10;
         let y = d3.event.pageY + 10;
 
         this.tooltip = d3.select('#tooltip');
 
-        d3.select('.month-wrapper').text(this.month_dict_long[data.month]);
-        d3.select('#median-value').text(data.median);
-        d3.select('#max-value').text(data.max);
-        d3.select('#total-value').text(data.sum_days);
+        d3.select('.station-wrapper').text(this.titleName);
+        d3.select('.month-wrapper').text(this.month_dict_long[index]);
+        d3.select('.year-wrapper').text(this.year);
+        d3.select('#median-value').text(this.data[index].median).style('color', this.colorMean);
+        d3.select('#max-value').text(this.data[index].max).style('color', this.colorMax);
+        d3.select('#total-value').text(this.data[index].sum_days);
 
         this.tooltip
             .attr('style', `left: ${x}px; top: ${y}px; position: absolute`)
+            .classed('active', true)
     }
 
     updateGraphics(new_data, config_new) {
@@ -241,8 +270,8 @@ class Radarchart {
         }
 
 
-        this.updateCircles('max', 'red');
-        this.updateCircles('mean', 'blue');
+        this.updateCircles('max', '#004466');
+        this.updateCircles('mean', '#00ffa2');
     }
 
     calcMaxLocal(data_obj) {
@@ -263,12 +292,11 @@ class Radarchart {
         for (const key in max_local_object) {
             max_local_object[key] = d3.max(max_local_object[key]);
         }
-
         return max_local_object;
     }
 
-    updateAreas(data, color, category) {
-        this.areas[category] = this.areasWrapper.selectAll(`.${category}-area`)
+    updateAreas(data, color, category, index_current) {
+        this.areas[category] = this.areasWrapper.selectAll(`.${category}-area area ${index_current}-area`)
             .data([data])
         
         this.areas[category].exit().remove()
@@ -294,8 +322,53 @@ class Radarchart {
             .attr('transform', `translate( ${(this.width/2 + this.margin.left) - this.factor}, ${(this.height/2 + this.margin.top)  - this.factor})`)
     }
 
+    highlightMonths(data, category, index_current) {
+        let index = data.month;
+        d3.selectAll('.legend').classed('highlighted', d => {
+            if (data.month != undefined) {
+                return d == data.month ? true : false; 
+            } else {
+                return index_current == d ? true : false;
+            }
+        }).classed('hovered', false);
+
+        d3.selectAll(`.mean-circle`).classed('highlighted', (d,i) => {
+                return d.month == index_current ? true : false;
+        })
+
+        d3.selectAll(`.max-circle`).classed('highlighted', (d,i) => {
+                return d.month == index_current ? true : false;
+        })
+    }
+
+    highlightAll(index) {
+        d3.selectAll('.legend').classed('highlighted', false);
+        d3.selectAll(`.wrapper-${index}`).selectAll('.legend').classed('hovered', true);
+    }
+
+    unhighlightAll(index) {
+        d3.selectAll(`.wrapper-${index}`).selectAll('.legend').classed('hovered', false);
+    }
+
+    unhighlightMonths(data, category, index_current) {
+        let index = data.month;
+        d3.selectAll('.legend').classed('highlighted', d => {
+            return d == data.month ? false : false; 
+        });
+
+        d3.selectAll(`.mean-circle`).classed('highlighted', (d,i) => {
+            return d.month == index_current ? false : false;
+        })
+
+        d3.selectAll(`.max-circle`).classed('highlighted', (d,i) => {
+                return d.month == index_current ? false : false;
+        })
+    }
+
     updateCircles(category, color) {
         this.node_coords = {'mean':[], 'max':[]};
+        this.category = category;
+        let index_current
 
         this.circles[category] = this.nodesWrapper.selectAll(`.${category}-circle`)
             .data(this.data)
@@ -306,14 +379,17 @@ class Radarchart {
             .enter()
             .append('svg:circle')
             .classed(`${category}-circle`, true)
+            .attr('class', (d,i) => { return `${category}-circle circle-${i}` })
             .attr('fill', color)
             .attr('r', this.radius)
-            .on('mouseover', d => {
+            .on('mouseover', (d,i) => {
                 this.updateTooltip(d);
+                this.highlightMonths(d, category, i);
             })
-            .on('mouseout', d => {
+            .on('mouseout', (d,i) => {
                 this.tooltip
                     .attr('style', 'display: none')
+                this.unhighlightMonths(d,category, i);
             })
             .merge(this.circles[category]);
         
@@ -338,7 +414,7 @@ class Radarchart {
             .attr('transform', `translate( ${(this.width/2 + this.margin.left) - this.factor}, ${(this.height/2 + this.margin.top)  - this.factor})`)
             
             
-            this.updateAreas(this.node_coords[category], color, category);
+            this.updateAreas(this.node_coords[category], color, category, index_current);
     }
 
 }

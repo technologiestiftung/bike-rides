@@ -67,6 +67,7 @@ class Tablehandler {
         this.move_temp_data = this.move_temp_data.bind(this);
         this.mergeJsons = this.mergeJsons.bind(this);
         this.createObj = this.createObj.bind(this);
+        this.readDictionary = this.readDictionary.bind(this);
     }
 
     parseXlsx2Json(filepath) {
@@ -82,6 +83,16 @@ class Tablehandler {
         };
 
         obj.dict = Xlsx.parse(filepath)[1];
+
+        let dict_obj = {};
+        obj.dict.data.forEach(row => {
+            let shorthand = row[0];
+            let name = row[1];
+
+            dict_obj[shorthand] = name;
+        })
+
+        this.writeFile('names_dict', JSON.stringify(dict_obj));
 
         this.years.forEach((year, i) => {
 
@@ -102,7 +113,7 @@ class Tablehandler {
             this.temp_cols_array = [];
         })
 
-        this.writeFile('location' , JSON.stringify(obj));
+        // this.writeFile('location' , JSON.stringify(obj));
     }
 
     createObj(file_array) {
@@ -150,6 +161,11 @@ class Tablehandler {
            this.writeFile(years[0], JSON.stringify(this.data_transformed));
        })
     }
+
+    readDictionary(json) {
+        this.dict = this.createDictionary(this.data.dict.data);
+        console.log(this.dict);
+    } 
 
     createDictionary(d) {
         const cols = d[0];
