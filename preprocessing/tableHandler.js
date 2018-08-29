@@ -68,6 +68,10 @@ class Tablehandler {
         this.mergeJsons = this.mergeJsons.bind(this);
         this.createObj = this.createObj.bind(this);
         this.readDictionary = this.readDictionary.bind(this);
+        this.createNestedArray = this.createNestedArray.bind(this);
+        this.roundMinutes = this.roundMinutes.bind(this);
+        this.roundToHour = this.roundToHour.bind(this);
+        this.analyseHours = this.analyseHours.bind(this);
     }
 
     parseXlsx2Json(filepath) {
@@ -140,6 +144,7 @@ class Tablehandler {
                             this.obj[station][year] = this.data[station][year];
                     }
                 }
+                console.log(this.obj);
                 this.writeFile('all_years', JSON.stringify(this.obj));
             })
         })
@@ -147,13 +152,13 @@ class Tablehandler {
 
     parseData(json) {  
         // '2012', '2013', '2014', '2015', '2016', 
-        let years = ['2017']
+        let years = ['2012']
         fs.readFile(json, 'utf8', (err, data) => {
            if (err) throw err;
            this.data = JSON.parse(data);
            this.dict = this.createDictionary(this.data.dict.data);
 
-           this.fillObj(this.data.years['2017'].data[0]);
+           this.fillObj(this.data.years[years[0]].data[0]);
 
            years.forEach(year => {
                this.restructure_sheet(this.data['years'][year]);
@@ -228,14 +233,47 @@ class Tablehandler {
         );
     }
 
+    createNestedArray(array_number) {
+        let arr = [];
+        for (let index = 0; index < array_number; index++) {
+            arr.push([]);
+        }
+        return arr;
+    }
+
+    roundMinutes(date) {
+        date.setHours(date.getHours() + Math.round(date.getMinutes()/60));
+        date.setMinutes(0);
+        return date;
+    }
+
+    roundToHour(date) {
+        let p = 60 * 60 * 1000; // milliseconds in an hour
+        return new Date(Math.round(date.getTime() / p ) * p);
+    }
+
+    analyseHours(hrs_arr) {
+        let hrs_summed = this.createNestedArray(24);
+        hrs_arr.forEach((hour,i) => {
+            hrs_summed[i].push({
+                median: d3.median(hour),
+                max: d3.max(hour),
+                hour: i
+            })
+        })
+        return hrs_summed;
+    }
+
     parse_data(structured_data) {
         let BreakException = {};
         let stations_temp = [];
+        let hrs_arr = this.createNestedArray(24);
 
         for (let index = 0; index < 27; index++) {
             stations_temp.push([]);
         }
-
+        
+        
         structured_data.forEach((station, index_station) => {
             if(station.index > -1) {
 
@@ -246,7 +284,6 @@ class Tablehandler {
                 } else {
                     this.day_current = 0;
                 }
-                // throw BreakException;
                 let day_data = [];
 
                 station_values.forEach((timeslot, index_timeslot) => {
@@ -255,12 +292,18 @@ class Tablehandler {
                     const day = time.getDay();
                     const month = time.getMonth();
                     const year = time.getYear() + 1900;
+                    const hour = time.getHours();
+                    const hour_int = this.roundToHour(time).getHours();
 
                     let months_test = [];
                     this.year = year;
                 
                     day_data.push(value);
                     this.month_data.push(parseInt(value));
+                    hrs_arr[hour_int].push(parseInt(value))
+                    if (index_timeslot == 50) {
+                    }
+
                     
                     if (this.day_current != day) {                                   // condition per day
                         this.day_current = day;
@@ -307,6 +350,7 @@ class Tablehandler {
                             this.weekdays = [[], [], [], [], [], [], []];
                         });
                         
+                        this.hours_current = this.analyseHours(hrs_arr);
                         this.weekdays_current_flat = _.flattenDeep(this.weekdays_summed);
                         this.weekdays_data_current = this.analyse_weekdays(this.weekdays_summed);
                         this.month_data_current = this.analyse_month(this.month_data, this.weekdays_current_flat, this.weekdays_data_current);
@@ -316,6 +360,7 @@ class Tablehandler {
                         
                         // stations_temp[index_station].push(this.month_data_current);
                         this.data_transformed[station.name][this.year].push(this.month_data_current);
+                        this.data_transformed[station.name][this.year][0]['hours'] = this.hours_current;
                         
                         this.month_data = [];
                         this.weekdays_summed = [[], [], [], [], [], [], []];
