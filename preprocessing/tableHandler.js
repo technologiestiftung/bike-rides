@@ -72,6 +72,10 @@ class Tablehandler {
         this.roundMinutes = this.roundMinutes.bind(this);
         this.roundToHour = this.roundToHour.bind(this);
         this.analyseHours = this.analyseHours.bind(this);
+        this.calcMonths = this.calcMonths.bind(this);
+        this.calcDays = this.calcDays.bind(this);
+        this.calcHoursWeekdays = this.calcHoursWeekdays.bind(this);
+        this.calcHoursWeekends = this.calcHoursWeekends.bind(this);
     }
 
     parseXlsx2Json(filepath) {
@@ -102,22 +106,23 @@ class Tablehandler {
 
             let array_temp = [];
             
-            Xlsx.parse(filepath)[i + 2].data.forEach(row_array => {
+            Xlsx.parse(filepath)[i + 1].data.forEach(row_array => {
                 row_array.forEach(value => {
                     if(value == "") {
-                        this.temp_cols_array.push('no data');
+                        this.temp_cols_array.push(0);
+                    } else if (value == null) {
+                        this.temp_cols_array.push(0);
                     } else {
                         this.temp_cols_array.push(value);
                     }
-                    
                 })
-                array_temp.push(this.temp_cols_array);
+                console.log(this.temp_cols_array);
+                obj.years[year] = this.temp_cols_array;
+                this.temp_cols_array = [];
             });
-            obj.years[year] = this.temp_cols_array
-            this.temp_cols_array = [];
         })
 
-        // this.writeFile('location' , JSON.stringify(obj));
+        this.writeFile('location' , JSON.stringify(obj));
     }
 
     createObj(file_array) {
@@ -144,7 +149,7 @@ class Tablehandler {
                             this.obj[station][year] = this.data[station][year];
                     }
                 }
-                console.log(this.obj);
+                // console.log(this.obj);
                 this.writeFile('all_years', JSON.stringify(this.obj));
             })
         })
@@ -152,7 +157,7 @@ class Tablehandler {
 
     parseData(json) {  
         // '2012', '2013', '2014', '2015', '2016', 
-        let years = ['2012']
+        let years = ['2017']
         fs.readFile(json, 'utf8', (err, data) => {
            if (err) throw err;
            this.data = JSON.parse(data);
@@ -162,8 +167,7 @@ class Tablehandler {
 
            years.forEach(year => {
                this.restructure_sheet(this.data['years'][year]);
-           })
-           this.writeFile(years[0], JSON.stringify(this.data_transformed));
+            })
        })
     }
 
@@ -264,111 +268,222 @@ class Tablehandler {
         return hrs_summed;
     }
 
-    parse_data(structured_data) {
-        let BreakException = {};
-        let stations_temp = [];
-        let hrs_arr = this.createNestedArray(24);
+    
 
-        for (let index = 0; index < 27; index++) {
-            stations_temp.push([]);
-        }
-        
+    parse_data(structured_data) {
+
+        // monsterArray[stationID][year].weeks[0-6].data[,,,,,,,,]
+        //                                         .sum
+        //                                         .mean
+        //                              .months[0-11].data
+        //                              .hours[0-23].data
+        //                              .hours_weekend[][0-23].data
+        //                              .hours_weekday[][0-23].data
+
+        // if(!weekID in .weeks) .weeks[weekID] = []
+
+        // delete .data
+
+        let BreakException = {};
+
+        let value, time, day, month, year, hour, hour_int;
         
         structured_data.forEach((station, index_station) => {
-            if(station.index > -1) {
+            let station_data_temp = {
+                'months': [{'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}],
+                'days': [{'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}],
+                'hoursWeekdays': [{'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}],
+                'hoursWeekends': [{'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}, {'data': [], 'sum': 0, 'median': 0, 'max': 0}],
+            }
 
+            
+            if(station.name != 'Date') {
                 this.station_name = station.name;
-                const station_values = station.values;
-                if (station.values[0] != undefined) {
-                    this.day_current = station.values[0].time.getDay(); // day 0 == sunday
-                } else {
-                    this.day_current = 0;
-                }
+
                 let day_data = [];
-
-                station_values.forEach((timeslot, index_timeslot) => {
-                    const value = timeslot.value;
-                    const time = timeslot.time;
-                    const day = time.getDay();
-                    const month = time.getMonth();
-                    const year = time.getYear() + 1900;
-                    const hour = time.getHours();
-                    const hour_int = this.roundToHour(time).getHours();
-
-                    let months_test = [];
-                    this.year = year;
+                let day_of_year = 0;
+                let day_current = station.values[0].time.getDay();
+                let unique_key;
                 
-                    day_data.push(value);
-                    this.month_data.push(parseInt(value));
-                    hrs_arr[hour_int].push(parseInt(value))
-                    if (index_timeslot == 50) {
-                    }
+                station.values.forEach((timeslot, index_timeslot) => {
 
                     
-                    if (this.day_current != day) {                                   // condition per day
-                        this.day_current = day;
-                        this.weekdays_used = _.remove(this.weekdays_used, function(n) {
-                            return n != day;
-                        });
-                        day_data.forEach(value => {
-                            this.weekdays[day].push(parseInt(value));
-                        })
-                        day_data = [];
-                    } else if (this.weekdays_used.length == 0) {                     // condition per week
-                        this.weekdays.forEach((day, i) => {
-                            this.weekdays_summed[i].push(_.sum(day));
-                            this.weekdays_used = [0,1,2,3,4,5,6];
-                            this.weekdays = [[], [], [], [], [], [], []];
-                        })
-                    } else if ((this.month_current < month && this.month_current < 11)) {     
-                        // reset weekdays
-                        this.weekdays.forEach((day, i) => {
-                            this.weekdays_summed[i].push(_.sum(day));
-                            this.weekdays_used = [0,1,2,3,4,5,6];
-                            this.weekdays = [[], [], [], [], [], [], []];
-                        });
-                        
-                        this.weekdays_current_flat = _.flattenDeep(this.weekdays_summed);
-                        this.weekdays_data_current = this.analyse_weekdays(this.weekdays_summed);
-                        this.month_data_current = this.analyse_month(this.month_data, this.weekdays_current_flat, this.weekdays_data_current);
-
-                        // console.log(this.month_data_current)
-                        // throw BreakException;
-                        
-                        // stations_temp[index_station].push(this.month_data_current);
-                        this.data_transformed[station.name][this.year].push(this.month_data_current);
-                        
-                        this.month_data = [];
-                        this.weekdays_summed = [[], [], [], [], [], [], []];
-                        this.month_current = month;                    // condition per month
-
-                    } else if (this.month_current == 11 && station_values.length == index_timeslot + 2) {
-                        // reset weekdays
-                        this.weekdays.forEach((day, i) => {
-                            this.weekdays_summed[i].push(_.sum(day));
-                            this.weekdays_used = [0,1,2,3,4,5,6];
-                            this.weekdays = [[], [], [], [], [], [], []];
-                        });
-                        
-                        this.hours_current = this.analyseHours(hrs_arr);
-                        this.weekdays_current_flat = _.flattenDeep(this.weekdays_summed);
-                        this.weekdays_data_current = this.analyse_weekdays(this.weekdays_summed);
-                        this.month_data_current = this.analyse_month(this.month_data, this.weekdays_current_flat, this.weekdays_data_current);
-
-                        // console.log(this.month_data_current)
-                        // throw BreakException;
-                        
-                        // stations_temp[index_station].push(this.month_data_current);
-                        this.data_transformed[station.name][this.year].push(this.month_data_current);
-                        this.data_transformed[station.name][this.year][0]['hours'] = this.hours_current;
-                        
-                        this.month_data = [];
-                        this.weekdays_summed = [[], [], [], [], [], [], []];
-                        this.month_current = 0;                    // condition per month
+                    value = timeslot.value;
+                    time = timeslot.time;
+                    day = time.getDay();
+                    month = time.getMonth();
+                    year = time.getYear() + 1900;
+                    this.year = year;
+                    hour = time.getHours();
+                    hour_int = this.roundToHour(time).getHours();
+                    
+                    if (day_current != day) {
+                        day_current = day;
+                        day_of_year++;
                     }
+                    // add value to month
+                    station_data_temp.months[month].data.push({
+                        'day_of_year': day_of_year,
+                        'month': month,
+                        'value': value
+                    })
+
+                    // add value to correct day in data
+                    station_data_temp.days[day].data.push({
+                        'day_of_year': day_of_year,
+                        'month': month,
+                        'value': value
+                    })
+
+                    // add value to correct day in data
+                    station_data_temp.hoursWeekdays[hour_int].data.push({
+                        'day_of_year': day_of_year,
+                        'day': day,
+                        'value': value,
+                        'time': time,
+                        'hour': hour_int
+                    })
+
+                    // add value to correct day in data
+                    station_data_temp.hoursWeekends[hour_int].data.push({
+                        'day_of_year': day_of_year,
+                        'day': day,
+                        'value': value,
+                        'time': time,
+                        'hour': hour_int
+                    })
+
                 })
+
+                if(this.year == 2018) {
+                    this.year = 2017;
+                }
+
+                if(this.data_transformed[station.name][this.year] != undefined) {
+                    this.data_transformed[station.name][this.year].push(station_data_temp);
+
+                    // calculate median, max, min values for time sequences
+                    station_data_temp.months = this.calcMonths(station_data_temp.months);
+                    station_data_temp.days = this.calcDays(station_data_temp.days);
+                    station_data_temp.hoursWeekdays = this.calcHoursWeekdays(station_data_temp.hoursWeekdays);
+                    station_data_temp.hoursWeekends = this.calcHoursWeekends(station_data_temp.hoursWeekends);
+
+                    throw BreakException;
+                }
             }
         })
+
+
+        // write all data to json file
+        // this.writeFile(year, JSON.stringify(this.data_transformed));
+    }
+
+    calcHoursWeekends(hours) {
+        let hours_array = this.createNestedArray(24);
+        hours.forEach((hour, index_hour) => {
+            hour.data.forEach((data_value, index) => {
+                if (data_value.day == 0 || data_value.day == 6) {
+                    hours_array[data_value.hour].push(data_value.value)
+                }
+            })
+        })
+        
+        hours.forEach((hour, index) => {
+            hour.sum = _.sum(hours_array[index]);
+            hour.median = d3.median(hours_array[index]);
+            hour.max = d3.max(hours_array[index]);
+
+            delete hour.data; // remove this if you want to see data behind
+        })
+
+        return hours;
+    }
+
+    calcHoursWeekdays(hours) {
+        let hours_array = this.createNestedArray(24);
+        hours.forEach((hour, index_hour) => {
+            hour.data.forEach((data_value, index) => {
+                if (data_value.day != 0 && data_value.day != 6) {
+                    hours_array[data_value.hour].push(data_value.value)
+                }
+            })
+        })
+        
+        hours.forEach((hour, index) => {
+            hour.sum = _.sum(hours_array[index]);
+            hour.median = d3.median(hours_array[index]);
+            hour.max = d3.max(hours_array[index]);
+
+            delete hour.data; // remove this if you want to see data behind
+        })
+
+        return hours;
+    }
+
+    calcDays(days) {
+
+        let days_array = this.createNestedArray(7);
+
+        days.forEach((day, index_day) => {
+            let day_data = [];
+            let day_current = day.data[index_day].day_of_year;
+            
+            day.data.forEach((data_value, index) => {
+                if(day_current != data_value.day_of_year) {
+
+                    day_current = data_value.day_of_year;
+                    let sum_of_day = _.sum(day_data);
+                    days_array[index_day].push(sum_of_day);
+                    day_data = [];
+                } 
+                day_data.push(data_value.value);
+            })
+        })
+
+        days.forEach((day, index) => {
+            day.sum = _.sum(days_array[index]);
+            day.median = d3.median(days_array[index]);
+            day.max = d3.max(days_array[index]);
+
+            delete day.data; // remove this if you want to see data behind
+        })
+
+        return days;
+    }
+
+    calcMonths(months) {
+        let day_current = months[0].data[0].day_of_year;
+        let months_array = this.createNestedArray(12);
+
+        months.forEach(month_current => {
+            let day_data = [];
+
+            month_current.data.forEach((data_value, index) => {
+
+                if (day_current != data_value.day_of_year) {
+                    
+                    day_current = data_value.day_of_year;
+                    let sum_of_day = _.sum(day_data);
+                    months_array[data_value.month].push(sum_of_day);
+                    day_data = [];
+                }
+
+                day_data.push(data_value.value);
+            })
+
+        })
+
+        // console.log(months_array);
+
+        months.forEach((month, index) => {
+            month.sum = _.sum(months_array[index]);
+            month.median = d3.median(months_array[index]);
+            month.max = d3.max(months_array[index]);
+
+            delete month.data; // remove this if you want to see data behind
+        })
+
+        return months;
     }
 
     move_temp_data(data_temp_year) {

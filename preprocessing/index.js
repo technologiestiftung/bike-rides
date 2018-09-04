@@ -13,7 +13,7 @@ const tableHandler = new Tablehandler();
 // tableHandler.parseXlsx2Json(xlsx);
 
 // 2. parse data for each year (2012 - 2017)
-// tableHandler.parseData(json);
+tableHandler.parseData(json);
 
 // 3. merge jsons
-tableHandler.createObj(files);
+// tableHandler.createObj(files);
