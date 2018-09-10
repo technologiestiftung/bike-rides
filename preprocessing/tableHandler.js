@@ -133,31 +133,54 @@ class Tablehandler {
     }
 
     mergeJsons(file_array, obj) {
-        
-        file_array.forEach((file, i) => {
-            let year = file.slice(0,4)
-            let file_path = `./data/${file}`;
+
+        file_array.forEach((file_year, i) => {
+            let year = file_year.slice(0,4);
+            let file_path = `./data/${file_year}`;
+
             fs.readFile(file_path, 'utf8', (err, data) => {
                 this.data = JSON.parse(data);
                 let stations_array = [];
+
                 for(var key in this.data) {
-                    stations_array.push(key);
+                    stations_array.push(key)
                 }
-                
+
                 for (var station in this.data) {
-                    if (this.data[station] != undefined && this.obj[station] != undefined) {
-                            this.obj[station][year] = this.data[station][year];
-                    }
-                }
-                // console.log(this.obj);
+                    // if (this.data[station] != undefined && this.obj[station] != undefined) {
+                    this.obj[station][year] = this.data[station][year];
+                    // }
+                }                
                 this.writeFile('all_years', JSON.stringify(this.obj));
             })
+
         })
+        
+        // file_array.forEach((file, i) => {
+        //     let year = file.slice(0,4)
+        //     let file_path = `./data/${file}`;
+        //     fs.readFile(file_path, 'utf8', (err, data) => {
+        //         this.data = JSON.parse(data);
+        //         let stations_array = [];
+        //         for(var key in this.data) {
+        //             stations_array.push(key);
+        //         }
+                
+        //         for (var station in this.data) {
+        //             if (this.data[station] != undefined && this.obj[station] != undefined) {
+        //                     this.obj[station][year] = this.data[station][year];
+        //             }
+        //         }
+        //         // console.log(this.obj);
+        //         this.writeFile('all_years', JSON.stringify(this.obj));
+        //     })
+        // })
+
     }
 
     parseData(json) {  
         // '2012', '2013', '2014', '2015', '2016', 
-        let years = ['2017']
+        let years = ['2013']
         fs.readFile(json, 'utf8', (err, data) => {
            if (err) throw err;
            this.data = JSON.parse(data);
@@ -300,82 +323,84 @@ class Tablehandler {
             if(station.name != 'Date') {
                 this.station_name = station.name;
 
-                let day_data = [];
-                let day_of_year = 0;
-                let day_current = station.values[0].time.getDay();
-                let unique_key;
-                
-                station.values.forEach((timeslot, index_timeslot) => {
+                if (station.values[0] != undefined) {
 
+                    let day_data = [];
+                    let day_of_year = 0;
+                    let day_current = station.values[0].time.getDay();
+                    let unique_key;
                     
-                    value = timeslot.value;
-                    time = timeslot.time;
-                    day = time.getDay();
-                    month = time.getMonth();
-                    year = time.getYear() + 1900;
-                    this.year = year;
-                    hour = time.getHours();
-                    hour_int = this.roundToHour(time).getHours();
-                    
-                    if (day_current != day) {
-                        day_current = day;
-                        day_of_year++;
+                    station.values.forEach((timeslot, index_timeslot) => {
+                        
+                        value = timeslot.value;
+                        time = timeslot.time;
+                        day = time.getDay();
+                        month = time.getMonth();
+                        year = time.getYear() + 1900;
+                        this.year = year;
+                        hour = time.getHours();
+                        hour_int = this.roundToHour(time).getHours();
+    
+                        if (typeof value != 'number') {
+                            value = 0;
+                        }
+                        
+                        if (day_current != day) {
+                            day_current = day;
+                            day_of_year++;
+                        }
+                        // add value to month
+                        station_data_temp.months[month].data.push({
+                            'day_of_year': day_of_year,
+                            'month': month,
+                            'value': value
+                        })
+    
+                        // add value to correct day in data
+                        station_data_temp.days[day].data.push({
+                            'day_of_year': day_of_year,
+                            'month': month,
+                            'value': value
+                        })
+    
+                        // add value to correct day in data
+                        station_data_temp.hoursWeekdays[hour_int].data.push({
+                            'day_of_year': day_of_year,
+                            'day': day,
+                            'value': value,
+                            'time': time,
+                            'hour': hour_int
+                        })
+    
+                        // add value to correct day in data
+                        station_data_temp.hoursWeekends[hour_int].data.push({
+                            'day_of_year': day_of_year,
+                            'day': day,
+                            'value': value,
+                            'time': time,
+                            'hour': hour_int
+                        })
+                    })
+    
+    
+                    this.year = this.year - 1;
+    
+                    if(this.data_transformed[station.name][this.year] != undefined) {
+                        // calculate median, max, min values for time sequences
+                        station_data_temp.months = this.calcMonths(station_data_temp.months);
+                        station_data_temp.days = this.calcDays(station_data_temp.days);
+                        station_data_temp.hoursWeekdays = this.calcHoursWeekdays(station_data_temp.hoursWeekdays);
+                        station_data_temp.hoursWeekends = this.calcHoursWeekends(station_data_temp.hoursWeekends);
+    
+                        this.data_transformed[station.name][this.year].push(station_data_temp);
                     }
-                    // add value to month
-                    station_data_temp.months[month].data.push({
-                        'day_of_year': day_of_year,
-                        'month': month,
-                        'value': value
-                    })
-
-                    // add value to correct day in data
-                    station_data_temp.days[day].data.push({
-                        'day_of_year': day_of_year,
-                        'month': month,
-                        'value': value
-                    })
-
-                    // add value to correct day in data
-                    station_data_temp.hoursWeekdays[hour_int].data.push({
-                        'day_of_year': day_of_year,
-                        'day': day,
-                        'value': value,
-                        'time': time,
-                        'hour': hour_int
-                    })
-
-                    // add value to correct day in data
-                    station_data_temp.hoursWeekends[hour_int].data.push({
-                        'day_of_year': day_of_year,
-                        'day': day,
-                        'value': value,
-                        'time': time,
-                        'hour': hour_int
-                    })
-
-                })
-
-                if(this.year == 2018) {
-                    this.year = 2017;
                 }
 
-                if(this.data_transformed[station.name][this.year] != undefined) {
-                    this.data_transformed[station.name][this.year].push(station_data_temp);
-
-                    // calculate median, max, min values for time sequences
-                    station_data_temp.months = this.calcMonths(station_data_temp.months);
-                    station_data_temp.days = this.calcDays(station_data_temp.days);
-                    station_data_temp.hoursWeekdays = this.calcHoursWeekdays(station_data_temp.hoursWeekdays);
-                    station_data_temp.hoursWeekends = this.calcHoursWeekends(station_data_temp.hoursWeekends);
-
-                    throw BreakException;
-                }
             }
         })
 
-
         // write all data to json file
-        // this.writeFile(year, JSON.stringify(this.data_transformed));
+        this.writeFile(this.year, JSON.stringify(this.data_transformed));
     }
 
     calcHoursWeekends(hours) {
